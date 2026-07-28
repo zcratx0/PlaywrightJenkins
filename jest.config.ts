@@ -22,6 +22,10 @@ const config: Config = {
     "!src/**/*.d.ts",
     "!src/**/layout.tsx",
   ],
+  reporters: [
+    "default",
+    ["jest-junit", { outputFile: "junit-jest.xml" }],
+  ],
 };
 
 export default createJestConfig(config);

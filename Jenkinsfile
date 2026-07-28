@@ -4,6 +4,15 @@ pipeline {
     environment {
         NODE_HOME = tool(name: 'NodeJS', type: 'jenkins.plugins.nodejs.tools.NodeJSInstallation')
         PLAYWRIGHT_BROWSERS_PATH = '0'
+        BUGASURA_TEAM_ID = '107849'
+        BUGASURA_SPRINT_ID = '161858'
+        BUGASURA_API_URL = 'https://api.bugasura.io/api/v1/issues'
+    }
+
+    options {
+        // Keep failed test artifacts around long enough for the Bugasura publisher
+        // to read the JUnit files produced by Jest and Playwright.
+        preserveStages(builds: 5)
     }
 
     stages {
@@ -35,7 +44,7 @@ pipeline {
             }
             post {
                 always {
-                    junit allowEmptyResults: true, testResults: 'junit.xml'
+                    junit allowEmptyResults: true, testResults: 'junit-jest.xml'
                     publishHTML([
                         allowMissing: true,
                         alwaysLinkToLastBuild: true,
@@ -71,6 +80,27 @@ pipeline {
                         reportName: 'Playwright E2E Report'
                     ])
                     archiveArtifacts artifacts: 'test-results/**', allowEmptyArchive: true
+                }
+            }
+        }
+
+        stage('Publish Failures to Bugasura') {
+            when {
+                // Only run after the previous test stages have at least produced artifacts;
+                // the script itself exits 0 with no calls when there are no failures.
+                expression { fileExists('junit-jest.xml') || fileExists('playwright-report/junit.xml') }
+            }
+            steps {
+                withCredentials([string(credentialsId: 'bugazura-token', variable: 'BUGASURA_API_KEY')]) {
+                    sh '''
+                        node scripts/publish-to-bugasura.mjs \
+                            --junit-jest=junit-jest.xml \
+                            --junit-playwright=playwright-report/junit.xml \
+                            --build=${BUILD_NUMBER} \
+                            --job=${JOB_NAME} \
+                            --build-url=${BUILD_URL} \
+                            --report-url=${BUILD_URL}artifact/playwright-report/
+                    '''
                 }
             }
         }
