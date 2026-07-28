@@ -9,12 +9,6 @@ pipeline {
         BUGASURA_API_URL = 'https://api.bugasura.io/api/v1/issues'
     }
 
-    options {
-        // Keep failed test artifacts around long enough for the Bugasura publisher
-        // to read the JUnit files produced by Jest and Playwright.
-        preserveStages(builds: 5)
-    }
-
     stages {
         stage('Install Dependencies') {
             steps {
